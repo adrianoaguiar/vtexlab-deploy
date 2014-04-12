@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "express": "3.5.1",
-    "jade": "*"
+    "jade": "*",
+    "shelljs": "^0.2.6"
   }
 }
