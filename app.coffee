@@ -4,6 +4,7 @@ Module dependencies.
 ###
 
 express = require 'express'
+require 'shelljs/global'
 
 app = express()
 app.use(express.json())
@@ -25,7 +26,16 @@ validateHookSource = (req, res, next) ->
 	catch
 		res.send 401, "Unauthorized"
 
-	res.send 200, "Authorized."
+	next()
+
+cloneRepository = (req, res, next) ->
+	repo = JSON.parse(req.body.payload).repository
+	if !test('-e', repo.name)
+		exec "git clone https://github.com/vtex/#{repo.name}.git", (code, output) ->
+			 res.send 500, output if code isnt 0
+			 res.send 200, "Cloned."
+	else
+		res.send 200, "Cloned."
 
 app.get '/', (req, res) ->
   res.send """
@@ -33,7 +43,8 @@ app.get '/', (req, res) ->
     """
 
 app.post "/hooks",
-	validateHookSource
+	validateHookSource,
+	cloneRepository
 
 http.createServer(app).listen app.get("port"), ->
 	console.log "Express server listening on port " + app.get("port")
