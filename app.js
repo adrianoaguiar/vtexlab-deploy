@@ -5,9 +5,11 @@ Module dependencies.
  */
 
 (function() {
-  var app, config, express, validateHookSource;
+  var app, cloneRepository, config, express, pullRepository, validateHookSource;
 
   express = require('express');
+
+  require('shelljs/global');
 
   app = express();
 
@@ -32,14 +34,45 @@ Module dependencies.
     } catch (_error) {
       res.send(401, "Unauthorized");
     }
-    return res.send(200, "Authorized.");
+    return next();
+  };
+
+  cloneRepository = function(req, res, next) {
+    var repo;
+    repo = JSON.parse(req.body.payload).repository;
+    if (!test('-e', repo.name)) {
+      return exec("git clone https://github.com/vtex/" + repo.name + ".git", function(code, output) {
+        if (code !== 0) {
+          res.send(500, output);
+        }
+        return next();
+      });
+    } else {
+      return next();
+    }
+  };
+
+  pullRepository = function(req, res, next) {
+    var repo;
+    repo = JSON.parse(req.body.payload).repository;
+    return exec("cd " + repo.name + " && git fetch --all", function(code, output) {
+      if (code !== 0) {
+        res.send(500, output);
+      }
+      return exec("cd " + repo.name + " && git reset --hard origin/master", function(code, output) {
+        if (code !== 0) {
+          res.send(500, output);
+        }
+        return res.send(200, "Success.");
+      });
+    });
   };
 
   app.get('/', function(req, res) {
     return res.send("<h1>Works!</h1>");
   });
 
-  app.post("/hooks", validateHookSource);
+  app.post("/hooks", validateHookSource, cloneRepository, pullRepository);
 
   http.createServer(app).listen(app.get("port"), function() {
     console.log("Express server listening on port " + app.get("port"));

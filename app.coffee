@@ -33,9 +33,18 @@ cloneRepository = (req, res, next) ->
 	if !test('-e', repo.name)
 		exec "git clone https://github.com/vtex/#{repo.name}.git", (code, output) ->
 			 res.send 500, output if code isnt 0
-			 res.send 200, "Cloned."
+			 next()
 	else
-		res.send 200, "Cloned."
+		next()
+
+pullRepository = (req, res, next) ->
+	repo = JSON.parse(req.body.payload).repository
+	exec "cd #{repo.name} && git fetch --all", (code, output) ->
+		res.send 500, output if code isnt 0
+
+		exec "cd #{repo.name} && git reset --hard origin/master", (code, output) ->
+			res.send 500, output if code isnt 0
+			res.send 200, "Success."
 
 app.get '/', (req, res) ->
   res.send """
@@ -44,7 +53,8 @@ app.get '/', (req, res) ->
 
 app.post "/hooks",
 	validateHookSource,
-	cloneRepository
+	cloneRepository,
+	pullRepository
 
 http.createServer(app).listen app.get("port"), ->
 	console.log "Express server listening on port " + app.get("port")
