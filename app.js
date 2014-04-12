@@ -5,7 +5,7 @@ Module dependencies.
  */
 
 (function() {
-  var app, cloneRepository, config, express, pullRepository, validateHookSource;
+  var app, buildSite, cloneRepository, config, express, pullRepository, validateHookSource;
 
   express = require('express');
 
@@ -63,8 +63,17 @@ Module dependencies.
         if (code !== 0) {
           res.send(500, output);
         }
-        return res.send(200, "Success.");
+        return next();
       });
+    });
+  };
+
+  buildSite = function(req, res, next) {
+    return exec('grunt', function(code, output) {
+      if (code !== 0) {
+        res.send(500, output);
+      }
+      return res.send(200, "Sucess!");
     });
   };
 
@@ -72,7 +81,7 @@ Module dependencies.
     return res.send("<h1>Works!</h1>");
   });
 
-  app.post("/hooks", validateHookSource, cloneRepository, pullRepository);
+  app.post("/hooks", validateHookSource, cloneRepository, pullRepository, buildSite);
 
   http.createServer(app).listen(app.get("port"), function() {
     console.log("Express server listening on port " + app.get("port"));

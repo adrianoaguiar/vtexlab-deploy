@@ -5,6 +5,16 @@
   "dependencies": {
     "express": "3.5.1",
     "jade": "*",
-    "shelljs": "^0.2.6"
+    "shelljs": "^0.2.6",
+    "grunt": "^0.4.4",
+    "grunt-cli": "^0.1.13"
+  },
+  "devDependencies": {
+    "grunt-contrib-clean": "^0.5.0",
+    "grunt-jekyll": "^0.4.1",
+    "grunt-contrib-copy": "^0.5.0",
+    "grunt-contrib-imagemin": "^0.6.0",
+    "grunt-shell": "~0.6.4",
+    "grunt-exec": "~0.4.5"
   }
 }

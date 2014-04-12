@@ -44,7 +44,12 @@ pullRepository = (req, res, next) ->
 
 		exec "cd #{repo.name} && git reset --hard origin/master", (code, output) ->
 			res.send 500, output if code isnt 0
-			res.send 200, "Success."
+			next()
+
+buildSite = (req, res, next) ->
+	exec 'grunt', (code, output) ->
+		res.send 500, output if code isnt 0
+		res.send 200, "Sucess!"
 
 app.get '/', (req, res) ->
   res.send """
@@ -54,7 +59,8 @@ app.get '/', (req, res) ->
 app.post "/hooks",
 	validateHookSource,
 	cloneRepository,
-	pullRepository
+	pullRepository,
+	buildSite
 
 http.createServer(app).listen app.get("port"), ->
 	console.log "Express server listening on port " + app.get("port")
