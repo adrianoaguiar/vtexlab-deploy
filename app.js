@@ -5,11 +5,21 @@ Module dependencies.
  */
 
 (function() {
-  var app, buildSite, cloneRepository, config, express, pullRepository, validateHookSource;
+  var S3Deployer, app, buildSite, client, cloneRepository, config, deployer, express, globule, http, knox, pullRepository, uploadToS3, validateHookSource, _;
 
   express = require('express');
 
   require('shelljs/global');
+
+  http = require('http');
+
+  knox = require('knox');
+
+  _ = require('underscore');
+
+  globule = require('globule');
+
+  S3Deployer = require('deploy-s3');
 
   app = express();
 
@@ -24,11 +34,19 @@ Module dependencies.
     env: process.env.NODE_ENV || 'development'
   };
 
+  client = knox.createClient({
+    key: process.env.S3_KEY,
+    secret: process.env.S3_SECRET,
+    bucket: process.env.S3_BUCKETNAME
+  });
+
+  deployer = new S3Deployer({}, client);
+
   validateHookSource = function(req, res, next) {
     var repo, _ref;
     try {
       repo = JSON.parse(req.body.payload).repository;
-      if ((_ref = repo.name) !== 'vtexlab' && _ref !== 'docs' && _ref !== 'guide') {
+      if ((_ref = repo.name) !== 'vtexlab' && _ref !== 'vtexlab-docs' && _ref !== 'vtexlab-guide') {
         res.send(401, "Unauthorized");
       }
     } catch (_error) {
@@ -73,15 +91,48 @@ Module dependencies.
       if (code !== 0) {
         res.send(500, output);
       }
-      return res.send(200, "Sucess!");
+      return next();
     });
+  };
+
+  uploadToS3 = function(req, res, next) {
+    var deployPath, done, error, fail, fileArray, files, filteredFiles;
+    deployPath = "deploy/";
+    files = globule.find(deployPath + "**");
+    if (files.length === 0) {
+      error = "No files sent: " + files;
+      console.error(error);
+      return res.send(400, error);
+    }
+    filteredFiles = _.filter(files, function(file) {
+      if (test('-f', file)) {
+        return file;
+      }
+    });
+    fileArray = _.map(filteredFiles, function(f) {
+      return {
+        src: f,
+        dest: f.replace(deployPath, "")
+      };
+    });
+    console.log(fileArray);
+    done = function() {
+      console.log("UPLOAD SUCCESSFULL");
+      return res.send(200, "Upload complete at vtexlab.s3.amazonaws.com");
+    };
+    fail = function(reason) {
+      console.log("UPLOAD FAILED", reason);
+      return res.send(500, reason.toString());
+    };
+    console.log("STARTING UPLOAD TO S3");
+    return deployer.batchUploadFileArray(fileArray).then(done, fail, console.log);
   };
 
   app.get('/', function(req, res) {
     return res.send("<h1>Works!</h1>");
   });
 
-  app.post("/hooks", validateHookSource, cloneRepository, pullRepository, buildSite);
+  app.post("/hooks", validateHookSource, cloneRepository, pullRepository, buildSite, uploadToS3);
 
   http.createServer(app).listen(app.get("port"), function() {
     console.log("Express server listening on port " + app.get("port"));
