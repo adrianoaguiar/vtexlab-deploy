@@ -45,19 +45,20 @@ Module dependencies.
   validateHookSource = function(req, res, next) {
     var repo, _ref;
     try {
-      repo = JSON.parse(req.body.payload).repository;
+      repo = req.body.repository;
       if ((_ref = repo.name) !== 'vtexlab' && _ref !== 'vtexlab-docs' && _ref !== 'vtexlab-guide') {
-        res.send(401, "Unauthorized");
+        return res.send(401, "Unauthorized");
+      } else {
+        return next();
       }
     } catch (_error) {
-      res.send(401, "Unauthorized");
+      return res.send(401, "Unauthorized");
     }
-    return next();
   };
 
   cloneRepository = function(req, res, next) {
     var repo;
-    repo = JSON.parse(req.body.payload).repository;
+    repo = req.body.repository;
     if (!test('-e', repo.name)) {
       return exec("git clone https://github.com/vtex/" + repo.name + ".git", function(code, output) {
         if (code !== 0) {
@@ -72,19 +73,20 @@ Module dependencies.
 
   pullRepository = function(req, res, next) {
     var repo;
-    repo = JSON.parse(req.body.payload).repository;
-    return exec("cd " + repo.name + " && git fetch --all", function(code, output) {
+    return repo = req.body.repository;
+  };
+
+  exec("cd " + repo.name + " && git fetch --all", function(code, output) {
+    if (code !== 0) {
+      res.send(500, output);
+    }
+    return exec("cd " + repo.name + " && git reset --hard origin/master", function(code, output) {
       if (code !== 0) {
         res.send(500, output);
       }
-      return exec("cd " + repo.name + " && git reset --hard origin/master", function(code, output) {
-        if (code !== 0) {
-          res.send(500, output);
-        }
-        return next();
-      });
+      return next();
     });
-  };
+  });
 
   buildSite = function(req, res, next) {
     return exec('grunt', function(code, output) {

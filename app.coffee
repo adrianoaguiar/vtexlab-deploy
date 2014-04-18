@@ -34,15 +34,16 @@ deployer = new S3Deployer({}, client)
 # Appilication
 validateHookSource = (req, res, next) ->
 	try
-		repo = JSON.parse(req.body.payload).repository
-		res.send 401, "Unauthorized" if repo.name not in ['vtexlab', 'vtexlab-docs', 'vtexlab-guide']
+		repo = req.body.repository
+		if repo.name not in ['vtexlab', 'vtexlab-docs', 'vtexlab-guide']
+			res.send 401, "Unauthorized"
+		else
+			next()
 	catch
 		res.send 401, "Unauthorized"
 
-	next()
-
 cloneRepository = (req, res, next) ->
-	repo = JSON.parse(req.body.payload).repository
+	repo = req.body.repository
 	if !test('-e', repo.name)
 		exec "git clone https://github.com/vtex/#{repo.name}.git", (code, output) ->
 			 res.send 500, output if code isnt 0
@@ -51,7 +52,7 @@ cloneRepository = (req, res, next) ->
 		next()
 
 pullRepository = (req, res, next) ->
-	repo = JSON.parse(req.body.payload).repository
+    repo = req.body.repository
 	exec "cd #{repo.name} && git fetch --all", (code, output) ->
 		res.send 500, output if code isnt 0
 

@@ -14,7 +14,7 @@ module.exports = (grunt) ->
       jekyll:
         build:
           options:
-            src: "build/src/"
+            src: "build/"
             dest: "deploy/"
 
       copy:
