@@ -32,13 +32,13 @@ module.exports = (grunt) ->
             src: ['images/*.*']
             dest: 'build/'
           ]
-        docs:
+        guides:
           files: [
             expand: true
-            cwd: 'docs/'
+            cwd: 'vtexlab-guide/'
             src: '**'
             dest: 'build/docs/'
           ]
 
   grunt.loadNpmTasks name for name of pkg.devDependencies when name[0..5] is 'grunt-'
-  grunt.registerTask 'default', ['clean', 'exec:move', 'exec:install', 'copy:main', 'copy:media', 'copy:docs','jekyll']
+  grunt.registerTask 'default', ['clean', 'exec:move', 'exec:install', 'copy:main', 'copy:media', 'copy:guides','jekyll']
