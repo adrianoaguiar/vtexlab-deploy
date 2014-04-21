@@ -5,7 +5,7 @@ Module dependencies.
  */
 
 (function() {
-  var S3Deployer, app, buildSite, client, cloneRepository, config, deployer, express, globule, http, knox, pullRepository, uploadToS3, validateHookSource, _;
+  var S3Deleter, S3Deployer, S3Lister, app, buildSite, cleanS3Bucket, client, cloneRepository, config, createDeleter, deployer, express, globule, http, knox, lister, pullRepository, uploadToS3, validateHookSource, _;
 
   express = require('express');
 
@@ -19,7 +19,11 @@ Module dependencies.
 
   globule = require('globule');
 
+  S3Deleter = require('s3-deleter');
+
   S3Deployer = require('deploy-s3');
+
+  S3Lister = require('s3-lister');
 
   app = express();
 
@@ -41,6 +45,8 @@ Module dependencies.
   });
 
   deployer = new S3Deployer({}, client);
+
+  lister = new S3Lister(client);
 
   validateHookSource = function(req, res, next) {
     var repo, _ref;
@@ -97,6 +103,20 @@ Module dependencies.
     });
   };
 
+  cleanS3Bucket = function(req, res, next) {
+    var deleter;
+    deleter = createDeleter();
+    deleter.on('error', function(err) {
+      console.log('DELETE \'vtexlab-site\' FILES FAILED', err);
+      return res.send(500, err);
+    });
+    deleter.on('finish', function() {
+      console.log('CLEANUP \'vtexlab-site\' SUCCESSFULL');
+      return next();
+    });
+    return lister.pipe(deleter);
+  };
+
   uploadToS3 = function(req, res, next) {
     var deployPath, done, error, fail, fileArray, files, filteredFiles;
     deployPath = "deploy/";
@@ -130,11 +150,17 @@ Module dependencies.
     return deployer.batchUploadFileArray(fileArray).then(done, fail, console.log);
   };
 
+  createDeleter = function() {
+    return new S3Deleter(client, {
+      batchSize: 100
+    });
+  };
+
   app.get('/', function(req, res) {
     return res.send("<h1>Works!</h1>");
   });
 
-  app.post("/hooks", validateHookSource, cloneRepository, pullRepository, buildSite, uploadToS3);
+  app.post("/hooks", validateHookSource, cloneRepository, pullRepository, buildSite, cleanS3Bucket, uploadToS3);
 
   http.createServer(app).listen(app.get("port"), function() {
     console.log("Express server listening on port " + app.get("port"));
