@@ -10,7 +10,9 @@ knox = require 'knox'
 _ = require 'underscore'
 globule = require 'globule'
 
+S3Deleter = require 's3-deleter'
 S3Deployer = require 'deploy-s3'
+S3Lister  = require 's3-lister'
 
 app = express()
 app.use(express.json())
@@ -30,6 +32,7 @@ client = knox.createClient
 	bucket: process.env.S3_BUCKETNAME
 
 deployer = new S3Deployer({}, client)
+lister = new S3Lister client
 
 # Appilication
 validateHookSource = (req, res, next) ->
@@ -65,6 +68,18 @@ buildSite = (req, res, next) ->
 		res.send 500, output if code isnt 0
 		next()
 
+cleanS3Bucket = (req, res, next) ->
+	deleter = createDeleter()
+	deleter.on 'error', (err) ->
+		console.log 'DELETE \'vtexlab-site\' FILES FAILED', err
+		res.send 500, err
+
+	deleter.on 'finish', ->
+		console.log 'CLEANUP \'vtexlab-site\' SUCCESSFULL'
+		next()
+
+	lister.pipe deleter
+
 uploadToS3 = (req, res, next) ->
 	deployPath = "deploy/"
 	files = globule.find(deployPath + "**")
@@ -89,6 +104,9 @@ uploadToS3 = (req, res, next) ->
 	console.log "STARTING UPLOAD TO S3"
 	deployer.batchUploadFileArray(fileArray).then done, fail, console.log
 
+createDeleter = ->
+	return new S3Deleter client, {batchSize: 100}
+
 app.get '/', (req, res) ->
   res.send """
 	<h1>Works!</h1>
@@ -99,6 +117,7 @@ app.post "/hooks",
 	cloneRepository,
 	pullRepository,
 	buildSite,
+	cleanS3Bucket,
 	uploadToS3
 
 http.createServer(app).listen app.get("port"), ->
