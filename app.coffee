@@ -68,6 +68,21 @@ buildSite = (req, res, next) ->
 		res.send 500, output if code isnt 0
 		next()
 
+testSite = (req, res, next) ->
+	output = exec('cd vtexlab && jekyll serve --detach', {silent:true}).output;
+	killJekyll = getJekyllPID output
+
+	console.log "command:", killJekyll
+
+	exec killJekyll, (code, output) ->
+		res.send 500, output if code isnt 0
+		res.send 200, "Jekyll was killed. Dear Mr. Hyde! HAHAHA"
+
+getJekyllPID = (output) ->
+	regex = /Run \`(.+)\'/
+	result = output.match(regex);
+	return result[1]
+
 cleanS3Bucket = (req, res, next) ->
 	deleter = createDeleter()
 	deleter.on 'error', (err) ->

@@ -103,6 +103,28 @@ Module dependencies.
     });
   };
 
+  testSite = function(req, res, next) {
+    var killJekyll, output;
+    output = exec('cd vtexlab && jekyll serve --detach', {
+      silent: true
+    }).output;
+    killJekyll = getJekyllPID(output);
+    console.log("command:", killJekyll);
+    return exec(killJekyll, function(code, output) {
+      if (code !== 0) {
+        res.send(500, output);
+      }
+      return res.send(200, "Jekyll was killed. Dear Mr. Hyde! HAHAHA");
+    });
+  };
+
+  getJekyllPID = function(output) {
+    var regex, result;
+    regex = /Run \`(.+)\'/;
+    result = output.match(regex);
+    return result[1];
+  };
+
   cleanS3Bucket = function(req, res, next) {
     var deleter;
     deleter = createDeleter();
