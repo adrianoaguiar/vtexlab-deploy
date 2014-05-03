@@ -22,7 +22,7 @@ module.exports = (grunt) ->
           files: [
             expand: true
             cwd: 'vtexlab/'
-            src: ['**', '!**/*.less', '!Gruntfile.coffee']
+            src: ['**', '!Gruntfile.coffee']
             dest: 'build/'
           ]
         media:
@@ -39,6 +39,24 @@ module.exports = (grunt) ->
             src: '**'
             dest: 'build/docs/'
           ]
+        assets:
+          expand: true
+          cwd: 'build/_assets/javascripts/'
+          src: '**'
+          dest: 'build/assets/javascripts/'
+
+      sass:
+        dist:
+          options:
+            style: 'expanded'
+            debugInfo: true
+          files: [
+            expand: true
+            cwd: 'build/_assets/stylesheets'
+            src: ['main.scss', 'post-list.scss', 'product.scss', 'post.scss', 'docs.scss']
+            dest: 'build/assets/stylesheets'
+            ext: '.css'
+          ]
 
   grunt.loadNpmTasks name for name of pkg.devDependencies when name[0..5] is 'grunt-'
-  grunt.registerTask 'default', ['clean', 'exec:move', 'exec:install', 'copy:main', 'copy:media', 'copy:guides','jekyll']
+  grunt.registerTask 'default', ['clean', 'exec:move', 'exec:install', 'copy:main', 'copy:media', 'copy:guides', 'copy:assets', 'sass','jekyll']
