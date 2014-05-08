@@ -8,42 +8,20 @@ module.exports = (grunt) ->
           command: 'bundle install'
         move:
           command: 'cp vtexlab/Gemfile Gemfile'
-      clean:
-        main: ['build', 'deploy']
-
-      jekyll:
-        build:
-          options:
-            src: "build/"
-            dest: "deploy/"
-
+      
       copy:
-        main:
-          files: [
-            expand: true
-            cwd: 'vtexlab/'
-            src: ['**', '!Gruntfile.coffee']
-            dest: 'build/'
-          ]
-        media:
-          files: [
-            expand: true
-            cwd: 'vtexlab/'
-            src: ['images/*.*']
-            dest: 'build/'
-          ]
         guides:
           files: [
             expand: true
             cwd: 'vtexlab-guide/'
             src: '**'
-            dest: 'build/docs/'
+            dest: 'vtexlab/docs/'
           ]
         assets:
           expand: true
-          cwd: 'build/_assets/javascripts/'
+          cwd: 'vtexlab/_assets/javascripts/'
           src: '**'
-          dest: 'build/assets/javascripts/'
+          dest: 'vtexlab/assets/javascripts/'
 
       sass:
         dist:
@@ -52,11 +30,11 @@ module.exports = (grunt) ->
             debugInfo: true
           files: [
             expand: true
-            cwd: 'build/_assets/stylesheets'
+            cwd: 'vtexlab/_assets/stylesheets'
             src: ['main.scss', 'post-list.scss', 'product.scss', 'post.scss', 'docs.scss']
-            dest: 'build/assets/stylesheets'
+            dest: 'vtexlab/assets/stylesheets'
             ext: '.css'
           ]
 
   grunt.loadNpmTasks name for name of pkg.devDependencies when name[0..5] is 'grunt-'
-  grunt.registerTask 'default', ['clean', 'exec:move', 'exec:install', 'copy:main', 'copy:media', 'copy:guides', 'copy:assets', 'sass','jekyll']
+  grunt.registerTask 'default', ['exec:move', 'exec:install', 'copy:guides', 'copy:assets', 'sass']

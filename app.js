@@ -5,7 +5,7 @@ Module dependencies.
  */
 
 (function() {
-  var S3Deleter, S3Deployer, S3Lister, app, buildSite, cleanS3Bucket, client, cloneRepository, config, createDeleter, deployer, express, globule, http, knox, lister, pullRepository, uploadToS3, validateHookSource, _;
+  var S3Deleter, S3Deployer, S3Lister, app, buildSite, cleanS3Bucket, client, cloneRepository, config, createDeleter, deployer, express, globule, http, knox, lister, prepareEnviroment, pullRepository, uploadToS3, validateHookSource, _;
 
   express = require('express');
 
@@ -79,27 +79,36 @@ Module dependencies.
 
   pullRepository = function(req, res, next) {
     var repo;
-    return repo = req.body.repository;
-  };
-
-  exec("cd " + repo.name + " && git fetch --all", function(code, output) {
-    if (code !== 0) {
-      res.send(500, output);
-    }
-    return exec("cd " + repo.name + " && git reset --hard origin/master", function(code, output) {
+    repo = req.body.repository;
+    return exec("pushd " + repo.name + " && git fetch --all && popd", function(code, output) {
       if (code !== 0) {
         res.send(500, output);
       }
-      return next();
+      return exec("pushd " + repo.name + " && git reset --hard origin/master && popd", function(code, output) {
+        if (code !== 0) {
+          res.send(500, output);
+        }
+        return next();
+      });
     });
-  });
+  };
 
-  buildSite = function(req, res, next) {
+  prepareEnviroment = function(req, res, next) {
     return exec('grunt', function(code, output) {
       if (code !== 0) {
         res.send(500, output);
       }
       return next();
+    });
+  };
+
+  buildSite = function(req, res, next) {
+    return exec("cd vtexlab/ && jekyll build && cd ..", function(code, output) {
+      if (code !== 0) {
+        return res.send(500, output);
+      } else {
+        return next();
+      }
     });
   };
 
@@ -119,7 +128,7 @@ Module dependencies.
 
   uploadToS3 = function(req, res, next) {
     var deployPath, done, error, fail, fileArray, files, filteredFiles;
-    deployPath = "deploy/";
+    deployPath = "vtexlab/_site/";
     files = globule.find(deployPath + "**");
     if (files.length === 0) {
       error = "No files sent: " + files;
@@ -160,7 +169,7 @@ Module dependencies.
     return res.send("<h1>Works!</h1>");
   });
 
-  app.post("/hooks", validateHookSource, cloneRepository, pullRepository, buildSite, cleanS3Bucket, uploadToS3);
+  app.post("/hooks", validateHookSource, cloneRepository, pullRepository, prepareEnviroment, buildSite, cleanS3Bucket, uploadToS3);
 
   http.createServer(app).listen(app.get("port"), function() {
     console.log("Express server listening on port " + app.get("port"));

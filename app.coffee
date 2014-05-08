@@ -55,18 +55,25 @@ cloneRepository = (req, res, next) ->
 		next()
 
 pullRepository = (req, res, next) ->
-    repo = req.body.repository
-	exec "cd #{repo.name} && git fetch --all", (code, output) ->
+	repo = req.body.repository
+	exec "pushd #{repo.name} && git fetch --all && popd", (code, output) ->
 		res.send 500, output if code isnt 0
 
-		exec "cd #{repo.name} && git reset --hard origin/master", (code, output) ->
+		exec "pushd #{repo.name} && git reset --hard origin/master && popd", (code, output) ->
 			res.send 500, output if code isnt 0
 			next()
 
-buildSite = (req, res, next) ->
+prepareEnviroment = (req, res, next) ->
 	exec 'grunt', (code, output) ->
 		res.send 500, output if code isnt 0
 		next()
+
+buildSite = (req, res, next) ->
+	exec "cd vtexlab/ && jekyll build && cd ..", (code, output) ->
+		if code isnt 0
+			res.send 500, output
+		else
+			next()
 
 cleanS3Bucket = (req, res, next) ->
 	deleter = createDeleter()
@@ -81,7 +88,7 @@ cleanS3Bucket = (req, res, next) ->
 	lister.pipe deleter
 
 uploadToS3 = (req, res, next) ->
-	deployPath = "deploy/"
+	deployPath = "vtexlab/_site/"
 	files = globule.find(deployPath + "**")
 
 	if files.length is 0
@@ -116,6 +123,7 @@ app.post "/hooks",
 	validateHookSource,
 	cloneRepository,
 	pullRepository,
+	prepareEnviroment,
 	buildSite,
 	cleanS3Bucket,
 	uploadToS3
