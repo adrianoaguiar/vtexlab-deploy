@@ -5,7 +5,7 @@ Module dependencies.
  */
 
 (function() {
-  var S3Deleter, S3Deployer, S3Lister, app, buildSite, cleanS3Bucket, client, cloneRepository, config, createDeleter, deployer, express, globule, http, knox, lister, prepareEnviroment, pullRepository, uploadToS3, validateHookSource, _;
+  var S3Deleter, S3Deployer, S3Lister, app, buildSite, cleanS3Bucket, cloneRepository, config, createClient, createDeleter, createDeployer, createListener, express, getBranch, getBucketName, globule, http, knox, prepareEnviroment, pullRepository, uploadToS3, validateHookBranch, validateHookSource, _;
 
   express = require('express');
 
@@ -38,16 +38,6 @@ Module dependencies.
     env: process.env.NODE_ENV || 'development'
   };
 
-  client = knox.createClient({
-    key: process.env.S3_KEY,
-    secret: process.env.S3_SECRET,
-    bucket: process.env.S3_BUCKETNAME
-  });
-
-  deployer = new S3Deployer({}, client);
-
-  lister = new S3Lister(client);
-
   validateHookSource = function(req, res, next) {
     var repo, _ref;
     try {
@@ -62,29 +52,54 @@ Module dependencies.
     }
   };
 
-  cloneRepository = function(req, res, next) {
-    var repo;
-    repo = req.body.repository;
-    if (!test('-e', repo.name)) {
-      return exec("git clone https://github.com/vtex/" + repo.name + ".git", function(code, output) {
-        if (code !== 0) {
-          res.send(500, output);
-        }
+  validateHookBranch = function(req, res, next) {
+    var branch;
+    try {
+      branch = getBranch(req);
+      if (branch !== 'stable' && branch !== 'development') {
+        return res.send(202, "Branch is not \'master\' or \'development\'");
+      } else {
         return next();
+      }
+    } catch (_error) {
+      return res.send(401, "Some error occur when try to verify branch-ref");
+    }
+  };
+
+  cloneRepository = function(req, res, next) {
+    var branch, repo;
+    repo = req.body.repository;
+    branch = getBranch(req);
+    if (!test('-e', "" + branch + "/" + repo.name + "/")) {
+      exec("pushd " + branch + "/ && git clone https://github.com/vtex/" + repo.name + ".git && popd", function(code, output) {
+        if (code !== 0) {
+          return res.send(500, output);
+        }
       });
+      if (branch === 'development') {
+        return exec("pushd " + branch + "/" + repo.name + "/ && git checkout development && popd", function(code, output) {
+          if (code !== 0) {
+            res.send(500, output);
+          }
+          return next();
+        });
+      } else {
+        return next();
+      }
     } else {
       return next();
     }
   };
 
   pullRepository = function(req, res, next) {
-    var repo;
+    var branch, repo;
     repo = req.body.repository;
-    return exec("pushd " + repo.name + " && git fetch --all && popd", function(code, output) {
+    branch = "" + (getBranch(req)) + "/" + repo.name + "/";
+    return exec("pushd " + branch + " && git fetch --all && popd", function(code, output) {
       if (code !== 0) {
         res.send(500, output);
       }
-      return exec("pushd " + repo.name + " && git reset --hard origin/master && popd", function(code, output) {
+      return exec("pushd " + branch + " && git reset --hard origin/master && popd", function(code, output) {
         if (code !== 0) {
           res.send(500, output);
         }
@@ -94,7 +109,9 @@ Module dependencies.
   };
 
   prepareEnviroment = function(req, res, next) {
-    return exec('grunt', function(code, output) {
+    var branch;
+    branch = getBranch(req);
+    return exec("sudo grunt --branch=" + branch, function(code, output) {
       if (code !== 0) {
         res.send(500, output);
       }
@@ -103,7 +120,10 @@ Module dependencies.
   };
 
   buildSite = function(req, res, next) {
-    return exec("cd vtexlab/ && jekyll build && cd ..", function(code, output) {
+    var branch, repo;
+    repo = req.body.repository;
+    branch = "" + (getBranch(req)) + "/" + repo.name + "/";
+    return exec("pushd " + branch + " && jekyll build && popd", function(code, output) {
       if (code !== 0) {
         return res.send(500, output);
       } else {
@@ -113,22 +133,27 @@ Module dependencies.
   };
 
   cleanS3Bucket = function(req, res, next) {
-    var deleter;
-    deleter = createDeleter();
+    var branch, client, deleter, lister;
+    branch = getBranch(req);
+    client = createClient(getBucketName(branch));
+    deleter = createDeleter(client);
+    lister = createListener(client);
     deleter.on('error', function(err) {
-      console.log('DELETE \'vtexlab-site\' FILES FAILED', err);
+      console.log("DELETE \'" + branch + "\' FILES FAILED", err);
       return res.send(500, err);
     });
     deleter.on('finish', function() {
-      console.log('CLEANUP \'vtexlab-site\' SUCCESSFULL');
+      console.log("CLEANUP \'" + branch + "\' SUCCESSFULL");
       return next();
     });
     return lister.pipe(deleter);
   };
 
   uploadToS3 = function(req, res, next) {
-    var deployPath, done, error, fail, fileArray, files, filteredFiles;
-    deployPath = "vtexlab/_site/";
+    var branch, client, deployPath, deployer, done, error, fail, fileArray, files, filteredFiles, repo;
+    repo = req.body.repository;
+    branch = getBranch(req);
+    deployPath = "" + branch + "/" + repo.name + "/_site/";
     files = globule.find(deployPath + "**");
     if (files.length === 0) {
       error = "No files sent: " + files;
@@ -156,20 +181,57 @@ Module dependencies.
       return res.send(500, reason.toString());
     };
     console.log("STARTING UPLOAD TO S3");
+    client = createClient(getBucketName(branch));
+    deployer = createDeployer(client);
     return deployer.batchUploadFileArray(fileArray).then(done, fail, console.log);
   };
 
-  createDeleter = function() {
+  createDeployer = function(client) {
+    return new S3Deployer({}, client);
+  };
+
+  createDeleter = function(client) {
     return new S3Deleter(client, {
       batchSize: 100
     });
+  };
+
+  createClient = function(bucketName) {
+    return knox.createClient({
+      key: process.env.S3_KEY,
+      secret: process.env.S3_SECRET,
+      bucket: bucketName
+    });
+  };
+
+  createListener = function(client) {
+    return new S3Lister(client);
+  };
+
+  getBucketName = function(branch) {
+    console.log("getBucketName ", branch);
+    if (branch === 'development') {
+      return process.env.S3_BUCKET_DEV;
+    }
+    if (branch === 'stable') {
+      return process.env.S3_BUCKET_STABLE;
+    }
+  };
+
+  getBranch = function(req) {
+    if (req.body.ref === "refs/heads/development") {
+      return "development";
+    }
+    if (req.body.ref === "refs/heads/master") {
+      return "stable";
+    }
   };
 
   app.get('/', function(req, res) {
     return res.send("<h1>Works!</h1>");
   });
 
-  app.post("/hooks", validateHookSource, cloneRepository, pullRepository, prepareEnviroment, buildSite, cleanS3Bucket, uploadToS3);
+  app.post("/hooks", validateHookSource, validateHookBranch, cloneRepository, pullRepository, prepareEnviroment, buildSite, cleanS3Bucket, uploadToS3);
 
   http.createServer(app).listen(app.get("port"), function() {
     console.log("Express server listening on port " + app.get("port"));
