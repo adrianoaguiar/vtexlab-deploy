@@ -1,5 +1,6 @@
 module.exports = (grunt) ->
   pkg = grunt.file.readJSON 'package.json'
+  branch = grunt.option 'branch'
 
   # Project configuration.
   grunt.initConfig
@@ -7,7 +8,7 @@ module.exports = (grunt) ->
         install:
           command: 'bundle install'
         move:
-          command: 'cp vtexlab/Gemfile Gemfile'
+          command: "cp  #{branch}/vtexlab/Gemfile Gemfile"
       
       copy:
         guides:
@@ -15,13 +16,20 @@ module.exports = (grunt) ->
             expand: true
             cwd: 'vtexlab-guide/'
             src: '**'
-            dest: 'vtexlab/docs/'
+            dest: "#{branch}/vtexlab/docs/"
+          ]
+        docs:
+          files: [
+            expand: true
+            cwd: 'vtexlab-docs/'
+            src: '**'
+            dest: "#{branch}/vtexlab-docs/"
           ]
         assets:
           expand: true
-          cwd: 'vtexlab/_assets/javascripts/'
+          cwd: "#{branch}/vtexlab/_assets/javascripts/"
           src: '**'
-          dest: 'vtexlab/assets/javascripts/'
+          dest: "#{branch}/vtexlab/assets/javascripts/"
 
       sass:
         dist:
@@ -30,11 +38,11 @@ module.exports = (grunt) ->
             debugInfo: true
           files: [
             expand: true
-            cwd: 'vtexlab/_assets/stylesheets'
+            cwd: "#{branch}/vtexlab/_assets/stylesheets"
             src: ['main.scss', 'post-list.scss', 'product.scss', 'post.scss', 'docs.scss']
-            dest: 'vtexlab/assets/stylesheets'
+            dest: "#{branch}/vtexlab/assets/stylesheets"
             ext: '.css'
           ]
 
   grunt.loadNpmTasks name for name of pkg.devDependencies when name[0..5] is 'grunt-'
-  grunt.registerTask 'default', ['exec:move', 'exec:install', 'copy:guides', 'copy:assets', 'sass']
+  grunt.registerTask 'default', ['exec:move', 'exec:install', 'copy:guides', 'copy:docs', 'copy:assets', 'sass']
