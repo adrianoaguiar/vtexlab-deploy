@@ -5,7 +5,7 @@ Module dependencies.
  */
 
 (function() {
-  var S3Deleter, S3Deployer, S3Lister, app, buildSite, cleanS3Bucket, cloneRepository, config, createClient, createDeleter, createDeployer, createListener, express, getBranch, getBucketName, globule, http, knox, prepareEnviroment, pullRepository, uploadToS3, validateHookBranch, validateHookSource, _;
+  var S3Deleter, S3Deployer, S3Lister, app, buildSite, cleanS3Bucket, cloneRepository, config, createClient, createDeleter, createDeployer, createListener, express, getBranch, getBucketFiles, getBucketName, globule, http, knox, prepareEnviroment, pullRepository, uploadToS3, validateHookBranch, validateHookSource, writeFile, _;
 
   express = require('express');
 
@@ -225,6 +225,42 @@ Module dependencies.
     if (req.body.ref === "refs/heads/master") {
       return "stable";
     }
+  };
+
+  getBucketFiles = function(req, res, next) {
+    var client;
+    client = createClient(process.env.S3_BUCKET_DOCS);
+    client.list({
+      prefix: ''
+    }, function(err, data) {
+      var file, _i, _len, _ref, _results;
+      _ref = data.Contents;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        file = _ref[_i];
+        _results.push(writeFile(client, file));
+      }
+      return _results;
+    });
+    return next();
+  };
+
+  writeFile = function(client, file) {
+    return client.get(file.Key).on("response", function(res) {
+      var dirPath, filePath, new_file;
+      filePath = "vtexlab-docs/" + file.Key;
+      dirPath = paths.dirname(filePath);
+      if (!test('-e', dirPath)) {
+        mkdir('-p', dirPath);
+      }
+      new_file = fs.createWriteStream(filePath);
+      res.on('data', function(chunk) {
+        return new_file.write(chunk);
+      });
+      return res.on('end', function() {
+        return new_file.end();
+      });
+    }).end();
   };
 
   app.get('/', function(req, res) {

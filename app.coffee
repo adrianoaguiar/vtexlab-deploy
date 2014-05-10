@@ -161,6 +161,27 @@ getBranch = (req) ->
 	if req.body.ref is "refs/heads/development" then return "development"
 	if req.body.ref is "refs/heads/master" then return "stable"
 
+getBucketFiles = (req, res, next) ->
+	client = createClient process.env.S3_BUCKET_DOCS
+	client.list { prefix: '' }, (err, data) ->
+		for file in data.Contents
+			writeFile(client, file)
+
+	next()
+
+writeFile = (client, file) ->
+	client.get(file.Key).on("response", (res) ->
+		filePath = "vtexlab-docs/#{file.Key}"
+		dirPath = paths.dirname(filePath)
+
+		mkdir '-p', dirPath if !test('-e', dirPath)
+
+		new_file = fs.createWriteStream filePath
+		res.on 'data', (chunk) -> new_file.write(chunk)
+		res.on 'end', -> new_file.end()
+
+	).end()
+
 app.get '/', (req, res) ->
   res.send """
 	<h1>Works!</h1>
