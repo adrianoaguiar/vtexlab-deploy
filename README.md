@@ -1,6 +1,6 @@
 ##vtexlab-deploy
 
-VtexLab site deployment application
+[VTEXLab](http://lab.vtex.com) site deployment application
 
 ### Table of contents
 * [Install](#install)
@@ -13,6 +13,7 @@ VtexLab site deployment application
 4. [Ruby](https://www.ruby-lang.org/en/installation/) `>=2.0.0`
 5. [Bundler](http://bundler.io/) `>=1.6`
 6. [Grunt](http://gruntjs.com/) `>=0.4.4`
+7. [s3cmd](http://s3tools.org/repositories) `>=1.0.0`
 
 ###Start
 
