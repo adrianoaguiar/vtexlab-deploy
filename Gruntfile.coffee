@@ -1,5 +1,6 @@
 module.exports = (grunt) ->
   pkg = grunt.file.readJSON 'package.json'
+  branch = grunt.option 'branch'
 
   # Project configuration.
   grunt.initConfig
@@ -7,43 +8,28 @@ module.exports = (grunt) ->
         install:
           command: 'bundle install'
         move:
-          command: 'cp vtexlab/Gemfile Gemfile'
-      clean:
-        main: ['build', 'deploy']
-
-      jekyll:
-        build:
-          options:
-            src: "build/"
-            dest: "deploy/"
+          command: "cp  #{branch}/vtexlab/Gemfile Gemfile"
 
       copy:
-        main:
+        docs:
           files: [
             expand: true
-            cwd: 'vtexlab/'
-            src: ['**', '!Gruntfile.coffee']
-            dest: 'build/'
-          ]
-        media:
-          files: [
-            expand: true
-            cwd: 'vtexlab/'
-            src: ['images/*.*']
-            dest: 'build/'
-          ]
-        guides:
-          files: [
-            expand: true
-            cwd: 'vtexlab-guide/'
+            cwd: "#{branch}/vtexlab-docs/"
             src: '**'
-            dest: 'build/docs/'
+            dest: "#{branch}/vtexlab/docs/"
+          ]
+        api:
+          files: [
+            expand: true
+            cwd: 'vtexlab-api-docs/'
+            src: '**'
+            dest: "#{branch}/vtexlab-api-docs/"
           ]
         assets:
           expand: true
-          cwd: 'build/_assets/javascripts/'
+          cwd: "#{branch}/vtexlab/_assets/javascripts/"
           src: '**'
-          dest: 'build/assets/javascripts/'
+          dest: "#{branch}/vtexlab/assets/javascripts/"
 
       sass:
         dist:
@@ -52,11 +38,11 @@ module.exports = (grunt) ->
             debugInfo: true
           files: [
             expand: true
-            cwd: 'build/_assets/stylesheets'
-            src: ['main.scss', 'post-list.scss', 'product.scss', 'post.scss', 'docs.scss']
-            dest: 'build/assets/stylesheets'
+            cwd: "#{branch}/vtexlab/_assets/stylesheets"
+            src: ['main.scss', 'home.scss', 'post-list.scss', 'product.scss', 'post.scss', 'docs.scss']
+            dest: "#{branch}/vtexlab/assets/stylesheets"
             ext: '.css'
           ]
 
   grunt.loadNpmTasks name for name of pkg.devDependencies when name[0..5] is 'grunt-'
-  grunt.registerTask 'default', ['clean', 'exec:move', 'exec:install', 'copy:main', 'copy:media', 'copy:guides', 'copy:assets', 'sass','jekyll']
+  grunt.registerTask 'default', ['exec:move', 'exec:install', 'copy:api','copy:docs', 'copy:assets', 'sass']
