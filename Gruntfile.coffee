@@ -23,7 +23,7 @@ module.exports = (grunt) ->
             expand: true
             cwd: 'vtexlab-api-docs/'
             src: '**'
-            dest: "#{branch}/vtexlab-api-docs/"
+            dest: "#{branch}/vtexlab/docs/"
           ]
         assets:
           expand: true

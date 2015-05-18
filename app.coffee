@@ -8,7 +8,7 @@ app.use(express.json())
 app.use(express.urlencoded())
 
 # all environments
-app.set "port", process.env.PORT or 3000
+app.set "port", 80
 
 # Default configurations
 config =
@@ -39,7 +39,6 @@ validateHookBranch = (req, res, next) ->
 cloneRepository = (req, res, next) ->
 	repo = req.body.repository
 	branch = getBranch req
-
 	if !test('-e', "#{branch}/#{repo.name}/")
 		exec "pushd #{branch}/ && git clone https://github.com/vtex/#{repo.name}.git && popd", (code, output) ->
 			 res.send 500, output if code isnt 0
@@ -66,7 +65,8 @@ pullRepository = (req, res, next) ->
 
 prepareEnviroment = (req, res, next) ->
 	branch = getBranch req
-	exec "sudo grunt --branch=#{branch}", (code, output) ->
+	console.log("cheguei")
+	exec "grunt --branch=#{branch}", (code, output) ->
 		res.send 500, output if code isnt 0
 		next()
 
@@ -78,7 +78,8 @@ buildSite = (req, res, next) ->
 		if code isnt 0
 	      res.send 500, output
 	    else
-	      next()
+	      #next()
+				res.send 200
 
 uploadToS3 = (req, res, next) ->
 	repo = req.body.repository
@@ -112,7 +113,7 @@ app.post "/hooks",
 	pullRepository,
 	prepareEnviroment,
 	buildSite,
-	uploadToS3
+	#uploadToS3
 
 http.createServer(app).listen app.get("port"), ->
 	console.log "Express server listening on port " + app.get("port")
